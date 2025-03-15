@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:math_expressions/math_expressions.dart';
 
 void main() {
   runApp(const MyApp());
@@ -7,7 +8,6 @@ void main() {
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -15,8 +15,7 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         colorScheme: ColorScheme.dark(
           onPrimary: const Color.fromARGB(255, 1, 10, 87),
-
-        )
+        ),
       ),
       home: const MyHomePage(title: 'Calculator'),
     );
@@ -25,15 +24,6 @@ class MyApp extends StatelessWidget {
 
 class MyHomePage extends StatefulWidget {
   const MyHomePage({super.key, required this.title});
-
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
-
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
 
   final String title;
 
@@ -46,18 +36,64 @@ class _MyHomePageState extends State<MyHomePage> {
   String result = "";
 
   void appendToExpression(String digit) {
-    expression += digit;
+    setState(() {
+      expression += digit;
+    });
   }
 
   void clearExpression() {
-    if (expression.isNotEmpty) {
-      expression = expression.substring(0, expression.length - 1);
-    }
+    setState(() {
+      if (expression.isNotEmpty) {
+        expression = expression.substring(0, expression.length - 1);
+      }
+    });
   }
 
-  void fclearExpression() {
-    expression = "";
-    result = "";
+  void fullClearExpression() {
+    setState(() {
+      expression = "";
+      result = "";
+    });
+  }
+
+  void calculateResult() {
+    setState(() {
+      try {
+        result = operate(expression);
+      } catch (e) {
+        result = "Error";
+      }
+    });
+  }
+
+  String operate(String expression) {
+    try {
+      expression = expression.replaceAll('x', '*');
+
+      ExpressionParser p = GrammarParser();
+      Expression exp = p.parse(expression);
+
+      ContextModel cm = ContextModel();
+
+      double evalResult = exp.evaluate(EvaluationType.REAL, cm);
+
+      try {
+        if (evalResult.isNaN) {
+          return "Error: undeterminate";
+        }
+        if (evalResult == evalResult.toInt()) {
+          return evalResult.toInt().toString();
+        }
+      }
+      catch (e) {
+        //pass
+      }
+      
+      return evalResult.toString();
+
+    } catch (e) {
+      return "Error: ${e.toString()}";
+    }
   }
 
   @override
@@ -74,7 +110,19 @@ class _MyHomePageState extends State<MyHomePage> {
           Expanded(
             child: CalculatorDisplays(expression: expression, result: result),
           ),
-          CalculatorButtons(), // Los botones se colocarán en la parte inferior
+          CalculatorButtons(
+            onButtonPressed: (String value) {
+              if (value == 'C') {
+                clearExpression();
+              } else if (value == 'AC') {
+                fullClearExpression();
+              } else if (value == '=') {
+                calculateResult();
+              } else {
+                appendToExpression(value);
+              }
+            },
+          ),
         ],
       ),
     );
@@ -91,7 +139,6 @@ class CalculatorDisplays extends StatelessWidget {
     required this.result,
   });
 
-  // Método para verificar si la cadena está vacía y devolver "0" en ese caso
   String _validateDisplayValue(String value) {
     return value.isEmpty ? "0" : value;
   }
@@ -105,7 +152,6 @@ class CalculatorDisplays extends StatelessWidget {
         children: <Widget>[
           CalculatorDisplay(displayValue: _validateDisplayValue(expression)),
           CalculatorDisplay(displayValue: _validateDisplayValue(result)),
-          // Puedes agregar más displays aquí si es necesario
         ],
       ),
     );
@@ -132,20 +178,18 @@ class CalculatorButton extends StatelessWidget {
     super.key,
     required this.text,
     this.textColor = Colors.white,
-    this.onPressed, // Parámetro opcional con valor predeterminado
+    this.onPressed,
   });
 
   final String text;
   final Color textColor;
-  final VoidCallback? onPressed; // Parámetro opcional
+  final VoidCallback? onPressed;
 
   @override
   Widget build(BuildContext context) {
     return Expanded(
       child: ElevatedButton(
-        onPressed: onPressed ?? () {
-          print(text); // Valor predeterminado: imprime el texto del botón
-        },
+        onPressed: onPressed,
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.indigo,
           shape: RoundedRectangleBorder(
@@ -167,22 +211,44 @@ class CalculatorButton extends StatelessWidget {
   }
 }
 
-class NumberButton extends CalculatorButton {
+class NumberButton extends StatelessWidget {
   final String digit;
-
-  static void _onPressed() {
-    print("caramba");
-  }
+  final ValueChanged<String> onPressed;
 
   const NumberButton({
     super.key,
     required this.digit,
-  }) : super(
-          text: digit,
-          textColor: Colors.black,
-          onPressed: _onPressed,
-        );
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return CalculatorButton(
+      text: digit,
+      onPressed: () => onPressed(digit),
+    );
+  }
 }
+
+class OperatorButton extends StatelessWidget {
+  final String operator;
+  final ValueChanged<String> onPressed;
+
+  const OperatorButton({
+    super.key,
+    required this.operator,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return CalculatorButton(
+      text: operator,
+      onPressed: () => onPressed(operator),
+    );
+  }
+}
+
 
 class CalculatorButtonRow extends StatelessWidget {
   const CalculatorButtonRow({super.key, required this.children});
@@ -201,50 +267,52 @@ class CalculatorButtonRow extends StatelessWidget {
 }
 
 class CalculatorButtons extends StatelessWidget {
-  const CalculatorButtons({super.key});
+  final Function(String) onButtonPressed;
+
+  const CalculatorButtons({super.key, required this.onButtonPressed});
 
   @override
   Widget build(BuildContext context) {
     return Column(
-        children: <Widget>[
-          CalculatorButtonRow(
-            children: const <Widget>[
-              NumberButton(digit: "7"),
-              NumberButton(digit: "8"),
-              NumberButton(digit: "9"),
-              CalculatorButton(text: 'C', textColor: Colors.red),
-              CalculatorButton(text: 'AC', textColor: Colors.red),
-            ],
-          ),
-          CalculatorButtonRow(
-            children: const <Widget>[
-              NumberButton(digit: "4"),
-              NumberButton(digit: "5"),
-              NumberButton(digit: "6"),
-              CalculatorButton(text: '+', textColor: Colors.white),
-              CalculatorButton(text: '-', textColor: Colors.white),
-            ],
-          ),
-          CalculatorButtonRow(
-            children: const <Widget>[
-              NumberButton(digit: "7"),
-              NumberButton(digit: "8"),
-              NumberButton(digit: "9"),
-              CalculatorButton(text: 'x', textColor: Colors.white),
-              CalculatorButton(text: '/', textColor: Colors.white),
-            ],
-          ),
-          CalculatorButtonRow(
-            children: const <Widget>[
-              NumberButton(digit: "0"),
-              NumberButton(digit: "."), //tecnically not a number
-              NumberButton(digit: "00"),  //tecnically not a digit
-              CalculatorButton(text: '=', textColor: Colors.white),
-              CalculatorButton(text: '', textColor: Colors.white),
-            ],
-          ),
-        ],
+      children: <Widget>[
+        CalculatorButtonRow(
+          children: <Widget>[
+            NumberButton(digit: "7", onPressed: onButtonPressed),
+            NumberButton(digit: "8", onPressed: onButtonPressed),
+            NumberButton(digit: "9", onPressed: onButtonPressed),
+            CalculatorButton(text: 'C', textColor: Colors.red, onPressed: () => onButtonPressed('C')),
+            CalculatorButton(text: 'AC', textColor: Colors.red, onPressed: () => onButtonPressed('AC')),
+          ],
+        ),
+        CalculatorButtonRow(
+          children: <Widget>[
+            NumberButton(digit: "4", onPressed: onButtonPressed),
+            NumberButton(digit: "5", onPressed: onButtonPressed),
+            NumberButton(digit: "6", onPressed: onButtonPressed),
+            OperatorButton(operator: '+', onPressed: onButtonPressed),
+            OperatorButton(operator: '-', onPressed: onButtonPressed),
+          ],
+        ),
+        CalculatorButtonRow(
+          children: <Widget>[
+            NumberButton(digit: "1", onPressed: onButtonPressed),
+            NumberButton(digit: "2", onPressed: onButtonPressed),
+            NumberButton(digit: "3", onPressed: onButtonPressed),
+            OperatorButton(operator: 'x', onPressed: onButtonPressed),
+            OperatorButton(operator: '/', onPressed: onButtonPressed),
+          ],
+        ),
+        CalculatorButtonRow(
+          children: <Widget>[
+            NumberButton(digit: "0", onPressed: onButtonPressed),
+            NumberButton(digit: ".", onPressed: onButtonPressed), 
+            NumberButton(digit: "00", onPressed: onButtonPressed), 
+            OperatorButton(operator: '=', onPressed: onButtonPressed),
+            CalculatorButton(text: '', textColor: Colors.white, onPressed: () {}),
+          ],
+        ),
+      ],
     );
   }
 }
- 
+
