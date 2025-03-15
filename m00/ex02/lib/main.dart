@@ -15,6 +15,7 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         colorScheme: ColorScheme.dark(
           onPrimary: const Color.fromARGB(255, 1, 10, 87),
+
         )
       ),
       home: const MyHomePage(title: 'Calculator'),
@@ -41,86 +42,155 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
-
-  void _incrementCounter() {
-    setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
         title: Center(
           child: Text(widget.title),
         ),
       ),
       body: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          //
-          // TRY THIS: Invoke "debug painting" (choose the "Toggle Debug Paint"
-          // action in the IDE, or press "p" in the console), to see the
-          // wireframe for each widget.
-          mainAxisAlignment: MainAxisAlignment.start,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-         
-          children: <Widget>[
-            const Text('You have pushed the button this many times:',
-            textAlign: TextAlign.right,),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
-              textAlign: TextAlign.right,
-            ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                ElevatedButton(
-                  onPressed: () {
-                    print("7");
-                  },
-                  child: const Text('7'),
-                ),
-                ElevatedButton(
-                  onPressed: () {
-                    print("8");
-                  },
-                  child: const Text('8'),
-                ),
-                ElevatedButton(
-                  onPressed: () {
-                    print("9");
-                  },
-                  child: const Text('9'),
-                ),
-
-              ],
-            )
-          ],
-        ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
-      ), // This trailing comma makes auto-formatting nicer for build methods.
+        children: <Widget>[
+          Expanded(
+            child: CalculatorDisplays()
+          ),
+          CalculatorButtons(), // Los botones se colocarán en la parte inferior
+        ],
+      ),
     );
   }
 }
+
+class CalculatorDisplays extends StatelessWidget {
+  const CalculatorDisplays({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          CalculatorDisplay(displayValue: '0'),
+          CalculatorDisplay(displayValue: '0'),
+          // Puedes agregar más displays aquí si es necesario
+        ],
+      ),
+    );
+  }
+}
+
+class CalculatorDisplay extends StatelessWidget {
+  const CalculatorDisplay({super.key, required this.displayValue});
+
+  final String displayValue;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      displayValue,
+      style: Theme.of(context).textTheme.headlineMedium,
+      textAlign: TextAlign.right,
+    );
+  }
+}
+
+class CalculatorButton extends StatelessWidget {
+  const CalculatorButton({super.key, required this.text, this.textColor = Colors.white});
+
+  final String text;
+  final Color textColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: ElevatedButton(
+        onPressed: () {
+          print(text);
+        },
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.indigo,
+          shape: RoundedRectangleBorder(
+            side: BorderSide(color: Colors.indigoAccent),
+          ),
+          minimumSize: Size(double.infinity, double.infinity),
+          padding: EdgeInsets.zero,
+        ),
+        child: Container(
+          alignment: Alignment.center,
+          child: Text(
+            text,
+            style: TextStyle(color: textColor),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class CalculatorButtonRow extends StatelessWidget {
+  const CalculatorButtonRow({super.key, required this.children});
+
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    return IntrinsicHeight(
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: children,
+      ),
+    );
+  }
+}
+
+class CalculatorButtons extends StatelessWidget {
+  const CalculatorButtons({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+        children: <Widget>[
+          CalculatorButtonRow(
+            children: const <Widget>[
+              CalculatorButton(text: '7', textColor: Colors.black),
+              CalculatorButton(text: '8', textColor: Colors.black),
+              CalculatorButton(text: '9', textColor: Colors.black),
+              CalculatorButton(text: 'C', textColor: Colors.red),
+              CalculatorButton(text: 'AC', textColor: Colors.red),
+            ],
+          ),
+          CalculatorButtonRow(
+            children: const <Widget>[
+              CalculatorButton(text: '4', textColor: Colors.black),
+              CalculatorButton(text: '5', textColor: Colors.black),
+              CalculatorButton(text: '6', textColor: Colors.black),
+              CalculatorButton(text: '+', textColor: Colors.white),
+              CalculatorButton(text: '-', textColor: Colors.white),
+            ],
+          ),
+          CalculatorButtonRow(
+            children: const <Widget>[
+              CalculatorButton(text: '1', textColor: Colors.black),
+              CalculatorButton(text: '2', textColor: Colors.black),
+              CalculatorButton(text: '3', textColor: Colors.black),
+              CalculatorButton(text: 'x', textColor: Colors.white),
+              CalculatorButton(text: '/', textColor: Colors.white),
+            ],
+          ),
+          CalculatorButtonRow(
+            children: const <Widget>[
+              CalculatorButton(text: '0', textColor: Colors.black),
+              CalculatorButton(text: '.', textColor: Colors.black),
+              CalculatorButton(text: '00', textColor: Colors.black),
+              CalculatorButton(text: '=', textColor: Colors.white),
+              CalculatorButton(text: '', textColor: Colors.white),
+            ],
+          ),
+        ],
+    );
+  }
+}
+ 
