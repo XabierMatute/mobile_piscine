@@ -13,24 +13,12 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Flutter Demo',
       theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // TRY THIS: Try running your application with "flutter run". You'll see
-        // the application has a purple toolbar. Then, without quitting the app,
-        // try changing the seedColor in the colorScheme below to Colors.green
-        // and then invoke "hot reload" (save your changes or press the "hot
-        // reload" button in a Flutter-supported IDE, or press "r" if you used
-        // the command line to start the app).
-        //
-        // Notice that the counter didn't reset back to zero; the application
-        // state is not lost during the reload. To reset the state, use hot
-        // restart instead.
-        //
-        // This works for code too, not just values: Most code changes can be
-        // tested with just a hot reload.
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+        colorScheme: ColorScheme.dark(
+          onPrimary: const Color.fromARGB(255, 1, 10, 87),
+
+        )
       ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+      home: const MyHomePage(title: 'Calculator'),
     );
   }
 }
@@ -54,69 +42,209 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
+  String expression = "";
+  String result = "";
 
-  void _incrementCounter() {
-    setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
-    });
+  void appendToExpression(String digit) {
+    expression += digit;
+  }
+
+  void clearExpression() {
+    if (expression.isNotEmpty) {
+      expression = expression.substring(0, expression.length - 1);
+    }
+  }
+
+  void fclearExpression() {
+    expression = "";
+    result = "";
   }
 
   @override
   Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
     return Scaffold(
       appBar: AppBar(
-        // TRY THIS: Try changing the color here to a specific color (to
-        // Colors.amber, perhaps?) and trigger a hot reload to see the AppBar
-        // change color while the other colors stay the same.
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
-      ),
-      body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
-        child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          //
-          // TRY THIS: Invoke "debug painting" (choose the "Toggle Debug Paint"
-          // action in the IDE, or press "p" in the console), to see the
-          // wireframe for each widget.
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            const Text('You have pushed the button this many times:'),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
-          ],
+        title: Center(
+          child: Text(widget.title),
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
-      ), // This trailing comma makes auto-formatting nicer for build methods.
+      body: Column(
+        children: <Widget>[
+          Expanded(
+            child: CalculatorDisplays(expression: expression, result: result),
+          ),
+          CalculatorButtons(), // Los botones se colocarán en la parte inferior
+        ],
+      ),
     );
   }
 }
+
+class CalculatorDisplays extends StatelessWidget {
+  final String expression;
+  final String result;
+
+  const CalculatorDisplays({
+    super.key,
+    required this.expression,
+    required this.result,
+  });
+
+  // Método para verificar si la cadena está vacía y devolver "0" en ese caso
+  String _validateDisplayValue(String value) {
+    return value.isEmpty ? "0" : value;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          CalculatorDisplay(displayValue: _validateDisplayValue(expression)),
+          CalculatorDisplay(displayValue: _validateDisplayValue(result)),
+          // Puedes agregar más displays aquí si es necesario
+        ],
+      ),
+    );
+  }
+}
+
+class CalculatorDisplay extends StatelessWidget {
+  const CalculatorDisplay({super.key, required this.displayValue});
+
+  final String displayValue;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      displayValue,
+      style: Theme.of(context).textTheme.headlineMedium,
+      textAlign: TextAlign.right,
+    );
+  }
+}
+
+class CalculatorButton extends StatelessWidget {
+  const CalculatorButton({
+    super.key,
+    required this.text,
+    this.textColor = Colors.white,
+    this.onPressed, // Parámetro opcional con valor predeterminado
+  });
+
+  final String text;
+  final Color textColor;
+  final VoidCallback? onPressed; // Parámetro opcional
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: ElevatedButton(
+        onPressed: onPressed ?? () {
+          print(text); // Valor predeterminado: imprime el texto del botón
+        },
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.indigo,
+          shape: RoundedRectangleBorder(
+            side: BorderSide(color: Colors.indigoAccent),
+            borderRadius: BorderRadius.zero,
+          ),
+          minimumSize: Size(double.infinity, double.infinity),
+          padding: EdgeInsets.zero,
+        ),
+        child: Container(
+          alignment: Alignment.center,
+          child: Text(
+            text,
+            style: TextStyle(color: textColor),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class NumberButton extends CalculatorButton {
+  final String digit;
+
+  static void _onPressed() {
+    print("caramba");
+  }
+
+  const NumberButton({
+    super.key,
+    required this.digit,
+  }) : super(
+          text: digit,
+          textColor: Colors.black,
+          onPressed: _onPressed,
+        );
+}
+
+class CalculatorButtonRow extends StatelessWidget {
+  const CalculatorButtonRow({super.key, required this.children});
+
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    return IntrinsicHeight(
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: children,
+      ),
+    );
+  }
+}
+
+class CalculatorButtons extends StatelessWidget {
+  const CalculatorButtons({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+        children: <Widget>[
+          CalculatorButtonRow(
+            children: const <Widget>[
+              NumberButton(digit: "7"),
+              NumberButton(digit: "8"),
+              NumberButton(digit: "9"),
+              CalculatorButton(text: 'C', textColor: Colors.red),
+              CalculatorButton(text: 'AC', textColor: Colors.red),
+            ],
+          ),
+          CalculatorButtonRow(
+            children: const <Widget>[
+              NumberButton(digit: "4"),
+              NumberButton(digit: "5"),
+              NumberButton(digit: "6"),
+              CalculatorButton(text: '+', textColor: Colors.white),
+              CalculatorButton(text: '-', textColor: Colors.white),
+            ],
+          ),
+          CalculatorButtonRow(
+            children: const <Widget>[
+              NumberButton(digit: "7"),
+              NumberButton(digit: "8"),
+              NumberButton(digit: "9"),
+              CalculatorButton(text: 'x', textColor: Colors.white),
+              CalculatorButton(text: '/', textColor: Colors.white),
+            ],
+          ),
+          CalculatorButtonRow(
+            children: const <Widget>[
+              NumberButton(digit: "0"),
+              NumberButton(digit: "."), //tecnically not a number
+              NumberButton(digit: "00"),  //tecnically not a digit
+              CalculatorButton(text: '=', textColor: Colors.white),
+              CalculatorButton(text: '', textColor: Colors.white),
+            ],
+          ),
+        ],
+    );
+  }
+}
+ 
