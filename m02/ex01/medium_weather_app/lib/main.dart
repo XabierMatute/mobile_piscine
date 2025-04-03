@@ -1,37 +1,8 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:open_meteo/open_meteo.dart';
 
-
-void test_open_meteo() async {
-  final weather = WeatherApi(temperatureUnit: TemperatureUnit.celsius);
-  final geocoding = GeocodingApi();
-
-  final durdus = await geocoding.requestJson(name: 'Urduliz');
-  final durdu = durdus["results"][0];
-  // final durdu = await geocoding.request('Urduliz');
-  print(durdu);
-  final response = await weather.request(
-    // latitude: 41.2287,
-    // longitude: 1.7457,
-    latitude: durdu["latitude"],
-    longitude: durdu["longitude"],
-    hourly: {WeatherHourly.temperature_2m},
-    current: {WeatherCurrent.temperature_2m},
-
-    // current: {WeatherCurrent.rain},
-    startDate: DateTime(2025, 3, 30),
-    endDate: DateTime(2025, 3, 31),
-    // temperature_unit: TemperatureUnit.celsius,
-  );
-  final data = response.currentData[WeatherCurrent.temperature_2m]!;
-  // final data = response.hourlyData[WeatherHourly.temperature_2m]!;
-  // final currentTemperature = data.values;
-  final currentTemperature = data.value;
-
-  print(currentTemperature);
-
-}
 
 Future<Position> _determinePosition() async {
   bool serviceEnabled;
@@ -124,12 +95,9 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
 
   void _geolocate() {
     Future<Position> position = _determinePosition();
-
-
     position.then((value) => 
-      setState(() async {
-        _updateLocation(value.toString());
-      // _updateLocation(value.toString());
+      setState(() {
+      _updateLocation(value.toString());
     })).catchError((error) {
       setState(() {
         print('Error: $error');
@@ -137,22 +105,6 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
       });
     });
   }
-
-  // Future<void> _summitLocation(String location) async {
-  //   List<Location> locations = await locationFromAddress(location).catchError(
-  //     (error) {
-  //       setState(() {
-  //         print('Error: $error');
-  //         _updateLocation(error.toString());
-  //       });
-  //       return Future<List<Location>>.error([]);
-  //     }
-  //   );
-
-  //   setState(() {
-  //     _updateLocation(locations[0].toString());
-  //   });
-  // }
 
   @override
   Widget build(BuildContext context) {
@@ -169,19 +121,11 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
                 child: Row(
                   children: [
                     Expanded(
-                      child: AutocompleteBasicPositionExample(),
-                                                                ),
-                    IconButton(
-                      icon: const Icon(Icons.bug_report),
-                      onPressed: () {
-                        // Search button action
-                        print('Debug button pressed');
-                        test_open_meteo();
-                        setState(() {
-                          _location = 'Debug';
-                        });
-                        // _summitLocation(_location);
-                      },
+                      child: Autocomplete<String>(
+                        optionsBuilder: optionBuilder,
+                        onSelected:(option) => _updateLocation(option),                        
+                        fieldViewBuilder: fieldViewBuilder,
+                      ),
                     ),
                     IconButton(
                       icon: const Icon(Icons.location_on),
@@ -218,105 +162,42 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
       ),
     );
   }
-}
 
-class AutocompleteBasicExample extends StatelessWidget {
-  const AutocompleteBasicExample({super.key});
+  Widget fieldViewBuilder(BuildContext context, TextEditingController textEditingController, FocusNode focusNode, VoidCallback onFieldSubmitted) {
+                        return TextField(
+                          controller: textEditingController,
+                          focusNode: focusNode,
+                          decoration: const InputDecoration(
+                            hintText: 'Search...',
+                            icon: Icon(Icons.search),
+                          ),
+                          onSubmitted: (String value) {
+                            _updateLocation(value);
+                          },
+                        );
+                      }
 
-  static const List<String> _kOptions = <String>['aardvark', 'bobcat', 'chameleon'];
-  // static final List<Position> _kOptions =  <Position>[Position(latitude: 0.0, longitude: 0.0)];
-
-
-  @override
-  Widget build(BuildContext context) {
-    return Autocomplete<String>(
-      optionsBuilder: (TextEditingValue textEditingValue) {
-        if (textEditingValue.text == '') {
-          return const Iterable<String>.empty();
-        }
-        return _kOptions.where((String option) {
-          return option.contains(textEditingValue.text.toLowerCase());
-        });
-      },
-      onSelected: (String selection) {
-        debugPrint('You just selected $selection');
-      },
-    );
+String formatPlace(String name, String? region, String? country) {
+    region = region == null || region.isEmpty ? '?' : ', $region';
+    country = country == null || country.isEmpty ? '?' : ', $country';
+    return '$name$region$country';
   }
-}
 
-class AutocompleteBasicPositionExample extends StatelessWidget {
-  const AutocompleteBasicPositionExample({super.key});
-
-  static final List<Position> _userOptions = <Position>[
-    Position(
-      longitude: -74.0060, // Nueva York
-      latitude: 40.7128,
-      timestamp: DateTime.now(),
-      accuracy: 10.0,
-      altitude: 10.0,
-      altitudeAccuracy: 5.0,
-      heading: 0.0,
-      headingAccuracy: 0.0,
-      speed: 0.0,
-      speedAccuracy: 0.0,
-    ),
-    Position(
-      longitude: -0.1276, // Londres
-      latitude: 51.5074,
-      timestamp: DateTime.now(),
-      accuracy: 10.0,
-      altitude: 35.0,
-      altitudeAccuracy: 5.0,
-      heading: 0.0,
-      headingAccuracy: 0.0,
-      speed: 0.0,
-      speedAccuracy: 0.0,
-    ),
-    Position(
-      longitude: 139.6917, // Tokio
-      latitude: 35.6895,
-      timestamp: DateTime.now(),
-      accuracy: 10.0,
-      altitude: 40.0,
-      altitudeAccuracy: 5.0,
-      heading: 0.0,
-      headingAccuracy: 0.0,
-      speed: 0.0,
-      speedAccuracy: 0.0,
-    ),
-  ];
-
-  static String _displayStringForOption(Position option) {
-    // Muestra el nombre de la ciudad basado en las coordenadas
-    if (option.latitude == 40.7128 && option.longitude == -74.0060) {
-      return "Nueva York, EE.UU.";
-    } else if (option.latitude == 51.5074 && option.longitude == -0.1276) {
-      return "Londres, Reino Unido";
-    } else if (option.latitude == 35.6895 && option.longitude == 139.6917) {
-      return "Tokio, Japón";
-    } else {
-      return "${option.latitude}, ${option.longitude}";
+Future<Iterable<String>> optionBuilder(TextEditingValue textEditingValue) async {
+    if (textEditingValue.text.isEmpty) {
+      return const Iterable<String>.empty();
     }
-  }
 
-  @override
-  Widget build(BuildContext context) {
-    return Autocomplete<Position>(
-      displayStringForOption: _displayStringForOption,
-      optionsBuilder: (TextEditingValue textEditingValue) {
-        if (textEditingValue.text.isEmpty) {
-          return const Iterable<Position>.empty();
-        }
-        return _userOptions.where((Position option) {
-          return _displayStringForOption(option)
-              .toLowerCase()
-              .contains(textEditingValue.text.toLowerCase());
-        });
-      },
-      onSelected: (Position selection) {
-        debugPrint('Seleccionaste: ${_displayStringForOption(selection)}');
-      },
-    );
+    final geocoding = GeocodingApi();
+    final answer = await geocoding.requestJson(name: textEditingValue.text);
+    if (answer['results'] == null) {
+      return const Iterable<String>.empty();
+    } 
+    final variable = answer['results'];
+    final List<String> options = [];
+    for (var i = 0; i < variable.length; i++) {
+      options.add(formatPlace(variable[i]['name'], variable[i]['admin1'], variable[i]['country']));
+    }
+    return options;
   }
-} 
+}
