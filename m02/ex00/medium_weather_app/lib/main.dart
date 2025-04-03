@@ -109,6 +109,7 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.title),
+        
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(42.0),
           child: Column(
