@@ -1,7 +1,9 @@
 import 'dart:async';
+// import 'dart:nativewrappers/_internal/vm/lib/ffi_native_type_patch.dart';
 // import 'dart:js_interop';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:medium_weather_app/main%20copy.dart';
 import 'package:open_meteo/open_meteo.dart';
 
 
@@ -151,39 +153,52 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
     final todayWeatherCode = response.hourlyData[WeatherHourly.weather_code]?.values;
     final todayWindSpeed = response.hourlyData[WeatherHourly.wind_speed_10m]?.values;
     final today = DateTime.now();
-    // final today = DateTime(now.year, now.month, now.day);
     for (int hour = 0; hour <= 24; hour++) {
       final dateTime = DateTime(today.year, today.month, today.day, hour);
       final temperature = todayWeatherData?[dateTime]?.toStringAsFixed(1) ?? 'N/A';
       final weatherCode = todayWeatherCode?[dateTime] ?? 'N/A';
       final windSpeed = todayWindSpeed?[dateTime]?.toStringAsFixed(1) ?? 'N/A';
       final weatherDescription = weatherCodes[weatherCode] ?? 'Unknown weather';
-      // final weatherCode = todayWeatherCode?.elementAt(hour) ?? 'N/A';
-      // final windSpeed = todayWindSpeed?.elementAt(hour).toStringAsFixed(1) ?? 'N/A';
-      // final weatherDescription = weatherCodes[weatherCode] ?? 'Unknown weather';
-      todayWeather += '$hour:00 - ${temperature} °C $weatherDescription $windSpeed km/h\n';
+      todayWeather += '$hour:00 - $temperature °C $weatherDescription $windSpeed km/h\n';
     }
     return todayWeather;
-    // return todayWeatherData?.values.toString() ?? '?';
+  }
+
+  String _extractWeeklyWeather(ApiResponse<WeatherApi> response) {
+    String weeklyWeather = '';
+    final weeklyTemperatureMin = response.dailyData[WeatherDaily.temperature_2m_min]?.values;
+    final weeklyTemperatureMax = response.dailyData[WeatherDaily.temperature_2m_max]?.values;
+    final weeklyWeatherCode = response.dailyData[WeatherDaily.weather_code]?.values;
+    final today = DateTime.now();
+    for (int day = 0; day < 7; day++) {
+      final dateTime = DateTime(today.year, today.month, today.day + day);
+      final temperatureMax = weeklyTemperatureMax?[dateTime]?.toStringAsFixed(1) ?? 'N/A';
+      final temperatureMin = weeklyTemperatureMin?[dateTime]?.toStringAsFixed(1) ?? 'N/A';
+      final weatherCode = weeklyWeatherCode?[dateTime] ?? 'N/A';
+      final weatherDescription = weatherCodes[weatherCode] ?? 'Unknown weather';
+      weeklyWeather += '${dateTime.day}/${dateTime.month} -$temperatureMin °C / $temperatureMax °C - $weatherDescription\n';
+    }
+    return weeklyWeather;
   }
 
 
   Future<void> _updateWeatherFromCoordinates(double latitude, double longitude) async {
       final wAPI = WeatherApi(temperatureUnit: TemperatureUnit.celsius);
+      final now = DateTime.now();
       final response = await wAPI.request(
         latitude: latitude,
         longitude: longitude,
         hourly: {WeatherHourly.temperature_2m, WeatherHourly.weather_code, WeatherHourly.wind_speed_10m},
-        // daily: {WeatherDaily.temperature_2m_max, WeatherDaily.temperature_2m_min},
+        daily: {WeatherDaily.temperature_2m_max, WeatherDaily.temperature_2m_min, WeatherDaily.weather_code},
         current: {WeatherCurrent.temperature_2m, WeatherCurrent.weather_code, WeatherCurrent.wind_speed_10m},
-        startDate: DateTime.now(),
-        endDate: DateTime.now().add(const Duration(days: 7)),
+        startDate: DateTime(now.year, now.month, now.day, 0, 0, 0),
+        endDate: now.add(const Duration(days: 7)),
       );
       // final currentWeather = response.currentData[WeatherCurrent.temperature_2m]?.value.toString() ?? 'N/A';
       setState(() {
         _currentWeather = _extractCurrentWeather(response);
         _todayWeather = _extractTodayWeather(response);
-        _weeklyWeather = response.toString();
+        _weeklyWeather = _extractWeeklyWeather(response);
       });
   }
 
@@ -200,12 +215,19 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
       setState(() {
       _updateLocation(value.toString());
       _updateWeatherFromCoordinates(value.latitude, value.longitude);
-      _updateWeatherFromCoordinates(40.7128, -74.0060);
     })).catchError((error) {
       setState(() {
         print('Error: $error');
         _updateLocation(error.toString());
       });
+    });
+  }
+
+  void _locationSelected(Location location) {
+    print('Location selected: ${location.name}');
+    setState(() {
+      _location = formatPlace(location.name, location.region, location.country);
+      _updateWeatherFromCoordinates(location.latitude!, location.longitude!);
     });
   }
 
@@ -224,9 +246,12 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
                 child: Row(
                   children: [
                     Expanded(
-                      child: Autocomplete<String>(
+                      child: Autocomplete<Location>(
                         optionsBuilder: optionBuilder,
-                        onSelected:(option) => _updateLocation(option),                        
+                        onSelected: (option) {
+                          _locationSelected(option);
+                          FocusScope.of(context).unfocus();
+                        },                 
                         fieldViewBuilder: fieldViewBuilder,
                       ),
                     ),
@@ -267,18 +292,21 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
   }
 
   Widget fieldViewBuilder(BuildContext context, TextEditingController textEditingController, FocusNode focusNode, VoidCallback onFieldSubmitted) {
-                        return TextField(
-                          controller: textEditingController,
-                          focusNode: focusNode,
-                          decoration: const InputDecoration(
-                            hintText: 'Search...',
-                            icon: Icon(Icons.search),
-                          ),
-                          onSubmitted: (String value) {
-                            _updateLocation(value);
-                          },
-                        );
-                      }
+  return TextField(
+    controller: textEditingController,
+    focusNode: focusNode,
+    decoration: const InputDecoration(
+      hintText: 'Search...',
+      icon: Icon(Icons.search),
+    ),
+    onSubmitted: (value) {
+      onFieldSubmitted();
+      FocusScope.of(context).unfocus();
+      textEditingController.clear();
+      // _locationSelected(value);
+    },
+  );
+}
 
 String formatPlace(String name, String? region, String? country) {
     region = region == null || region.isEmpty ? '?' : '\n$region';
@@ -286,21 +314,53 @@ String formatPlace(String name, String? region, String? country) {
     return '$name$region$country';
   }
 
-Future<Iterable<String>> optionBuilder(TextEditingValue textEditingValue) async {
+Future<Iterable<Location>> optionBuilder(TextEditingValue textEditingValue) async {
     if (textEditingValue.text.isEmpty) {
-      return const Iterable<String>.empty();
+      return const Iterable<Location>.empty();
     }
 
     final geocoding = GeocodingApi();
     final answer = await geocoding.requestJson(name: textEditingValue.text);
     if (answer['results'] == null) {
-      return const Iterable<String>.empty();
+      return const Iterable<Location>.empty();
     } 
     final variable = answer['results'];
-    final List<String> options = [];
+    final List<Location> options = [];
     for (var i = 0; i < variable.length; i++) {
-      options.add(formatPlace(variable[i]['name'], variable[i]['admin1'], variable[i]['country']));
+      final location = Location.json(variable[i]);
+      options.add(location);
     }
+    // options.sort((a, b) => a.name.compareTo(b.name));
+    // options.sort((a, b) => a.country?.compareTo(b.country ?? '') ?? 0);
+    // options.sort((a, b) => a.region?.compareTo(b.region ?? '') ?? 0);
+    // // options.sort((a, b) => a.id.compareTo(b.id));
+    // options.sort((a, b) => a.name.compareTo(b.name));
     return options;
+  }
+
+
+}
+
+class Location {
+  final int id;
+  final String name;
+  final String? region;
+  final String? country;
+  final double? latitude;
+  final double? longitude;
+
+  Location(this.id, this.name, this.region, this.country, this.latitude, this.longitude);
+
+  Location.json(Map<String, dynamic> json)
+    : id = json['id'],
+      name = json['name'],
+      region = json['admin1'],
+      latitude = json['latitude'],
+      longitude = json['longitude'],
+      country = json['country'];
+
+  @override
+  String toString() {
+    return '$name, $region, $country';
   }
 }
