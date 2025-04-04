@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'dart:ffi';
+// import 'dart:js_interop';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:open_meteo/open_meteo.dart';
@@ -74,8 +74,10 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  Location? _location;
-  Weather? _weather;
+  String _location = '';
+  String _currentWeather = '';
+  String _todayWeather = '';
+  String _weeklyWeather = '';
 
   @override
   void initState() {
@@ -89,7 +91,104 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
     super.dispose();
   }
 
-  void _updateLocation(Location location) {
+//   Code	Description
+// 0	Clear sky
+// 1, 2, 3	Mainly clear, partly cloudy, and overcast
+// 45, 48	Fog and depositing rime fog
+// 51, 53, 55	Drizzle: Light, moderate, and dense intensity
+// 56, 57	Freezing Drizzle: Light and dense intensity
+// 61, 63, 65	Rain: Slight, moderate and heavy intensity
+// 66, 67	Freezing Rain: Light and heavy intensity
+// 71, 73, 75	Snow fall: Slight, moderate, and heavy intensity
+// 77	Snow grains
+// 80, 81, 82	Rain showers: Slight, moderate, and violent
+// 85, 86	Snow showers slight and heavy
+// 95 *	Thunderstorm: Slight or moderate
+// 96, 99 *	Thunderstorm with slight and heavy hail
+  static const weatherCodes = {
+    0: 'Clear sky',
+    1: 'Mainly clear',
+    2: 'Partly cloudy',
+    3: 'Overcast',
+    45: 'Fog',
+    48: 'Depositing rime fog',
+    51: 'Light drizzle',
+    53: 'Moderate drizzle',
+    55: 'Dense drizzle',
+    56: 'Light freezing drizzle',
+    57: 'Dense freezing drizzle',
+    61: 'Slight rain',
+    63: 'Moderate rain',
+    65: 'Heavy rain',
+    66: 'Light freezing rain',
+    67: 'Heavy freezing rain',
+    71: 'Slight snow fall',
+    73: 'Moderate snow fall',
+    75: 'Heavy snow fall',
+    77: 'Snow grains',
+    80: 'Slight rain showers',
+    81: 'Moderate rain showers',
+    82: 'Violent rain showers',
+    85: 'Slight snow showers',
+    86: 'Heavy snow showers',
+    // Thunderstorm codes
+    95: 'Slight thunderstorm',
+    96: 'Thunderstorm with slight hail',
+    99: 'Thunderstorm with heavy hail'
+  };
+
+  String _extractCurrentWeather(ApiResponse<WeatherApi> response) {
+    final currentTemperature = response.currentData[WeatherCurrent.temperature_2m]?.value.toStringAsFixed(1)?? 'N/A';
+    final currentWeatherValue = response.currentData[WeatherCurrent.weather_code]?.value ?? 'N/A';
+    final currentWeatherDescription = weatherCodes[currentWeatherValue] ?? 'Unknown weather';
+    final windSpeed = response.currentData[WeatherCurrent.wind_speed_10m]?.value.toStringAsFixed(1) ?? 'N/A';
+    return '$currentTemperature °C\n$currentWeatherDescription\n$windSpeed km/h';
+  }
+
+  String _extractTodayWeather(ApiResponse<WeatherApi> response) {
+    String todayWeather = '';
+    final todayWeatherData = response.hourlyData[WeatherHourly.temperature_2m]?.values;
+    final todayWeatherCode = response.hourlyData[WeatherHourly.weather_code]?.values;
+    final todayWindSpeed = response.hourlyData[WeatherHourly.wind_speed_10m]?.values;
+    final today = DateTime.now();
+    // final today = DateTime(now.year, now.month, now.day);
+    for (int hour = 0; hour <= 24; hour++) {
+      final dateTime = DateTime(today.year, today.month, today.day, hour);
+      final temperature = todayWeatherData?[dateTime]?.toStringAsFixed(1) ?? 'N/A';
+      final weatherCode = todayWeatherCode?[dateTime] ?? 'N/A';
+      final windSpeed = todayWindSpeed?[dateTime]?.toStringAsFixed(1) ?? 'N/A';
+      final weatherDescription = weatherCodes[weatherCode] ?? 'Unknown weather';
+      // final weatherCode = todayWeatherCode?.elementAt(hour) ?? 'N/A';
+      // final windSpeed = todayWindSpeed?.elementAt(hour).toStringAsFixed(1) ?? 'N/A';
+      // final weatherDescription = weatherCodes[weatherCode] ?? 'Unknown weather';
+      todayWeather += '$hour:00 - ${temperature} °C $weatherDescription $windSpeed km/h\n';
+    }
+    return todayWeather;
+    // return todayWeatherData?.values.toString() ?? '?';
+  }
+
+
+  Future<void> _updateWeatherFromCoordinates(double latitude, double longitude) async {
+      final wAPI = WeatherApi(temperatureUnit: TemperatureUnit.celsius);
+      final response = await wAPI.request(
+        latitude: latitude,
+        longitude: longitude,
+        hourly: {WeatherHourly.temperature_2m, WeatherHourly.weather_code, WeatherHourly.wind_speed_10m},
+        // daily: {WeatherDaily.temperature_2m_max, WeatherDaily.temperature_2m_min},
+        current: {WeatherCurrent.temperature_2m, WeatherCurrent.weather_code, WeatherCurrent.wind_speed_10m},
+        startDate: DateTime.now(),
+        endDate: DateTime.now().add(const Duration(days: 7)),
+      );
+      // final currentWeather = response.currentData[WeatherCurrent.temperature_2m]?.value.toString() ?? 'N/A';
+      setState(() {
+        _currentWeather = _extractCurrentWeather(response);
+        _todayWeather = _extractTodayWeather(response);
+        _weeklyWeather = response.toString();
+      });
+  }
+
+
+  void _updateLocation(String location) {
     setState(() {
       _location = location;
     });
@@ -99,9 +198,9 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
     Future<Position> position = _determinePosition();
     position.then((value) => 
       setState(() {
-      final geocoding = GeocodingApi();
-      Location location = Location.json(geocoding.requestJson(latitude: value.latitude, longitude: value.longitude));
       _updateLocation(value.toString());
+      _updateWeatherFromCoordinates(value.latitude, value.longitude);
+      _updateWeatherFromCoordinates(40.7128, -74.0060);
     })).catchError((error) {
       setState(() {
         print('Error: $error');
@@ -149,9 +248,9 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
       body: TabBarView(
         controller: _tabController,
         children: [
-          Center(child: Text('Currently\n$_location', textAlign: TextAlign.center)),
-          Center(child: Text('Today\n$_location', textAlign: TextAlign.center)),
-          Center(child: Text('Weekly\n$_location', textAlign: TextAlign.center)),
+          SingleChildScrollView(child: Center(child: Text('Currently\n$_location\n$_currentWeather', textAlign: TextAlign.center),)),
+          SingleChildScrollView(child: Center(child: Text('Today\n$_location\n$_todayWeather', textAlign: TextAlign.center),)),
+          SingleChildScrollView(child: Center(child: Text('Weekly\n$_location\n$_weeklyWeather', textAlign: TextAlign.center),)),
         ],
       ),
       bottomNavigationBar: BottomAppBar(
@@ -182,8 +281,8 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
                       }
 
 String formatPlace(String name, String? region, String? country) {
-    region = region == null || region.isEmpty ? '?' : ', $region';
-    country = country == null || country.isEmpty ? '?' : ', $country';
+    region = region == null || region.isEmpty ? '?' : '\n$region';
+    country = country == null || country.isEmpty ? '?' : '\n$country';
     return '$name$region$country';
   }
 
@@ -205,96 +304,3 @@ Future<Iterable<String>> optionBuilder(TextEditingValue textEditingValue) async 
     return options;
   }
 }
-
-// Parameter	Format	Description
-// id	Integer	Unique ID for this location
-// name	String	Location name. Localized following the &language= parameter, if possible
-// latitude, longitude	Floating point	Geographical WGS84 coordinates of this location
-// elevation	Floating point	Elevation above mean sea level of this location
-// timezone	String	Time zone using time zone database definitions
-// feature_code	String	Type of this location. Following the GeoNames feature_code definition
-// country_code	String	2-Character ISO-3166-1 alpha2 country code. E.g. DE for Germany
-// country	String	Country name. Localized following the &language= parameter, if possible
-// country_id	Integer	Unique ID for this country
-// population	Integer	Number of inhabitants
-// postcodes	String array	List of postcodes for this location
-// admin1, admin2, admin3, admin4	String	Name of hierarchical administrative areas this location resides in. Admin1 is the first administrative level. Admin2 the second administrative level. Localized following the &language= parameter, if possible
-// admin1_id, admin2_id, admin3_id, admin4_id	Integer	Unique IDs for the administrative areas
-
-class Location {
-  final int id;           // Unique ID for this location
-  final String name;         // Location name. Localized following the &language= parameter, if possible
-  final Float latitude;     // Geographical WGS84 coordinates of this location
-  final Float longitude;    // Geographical WGS84 coordinates of this location
-  final Float elevation;    // Elevation above mean sea level of this location
-  final String timezone;     // Time zone using time zone database definitions
-  final String feature_code; // Type of this location. Following the GeoNames feature_code definition
-  final String country_code; // 2-Character ISO-3166-1 alpha2 country code. E.g. DE for Germany
-  final String country;      // Country name. Localized following the &language= parameter, if possible
-  final int country_id;   // Unique ID for this country
-  final int population;   // Number of inhabitants
-  final List<String> postcodes;    // List of postcodes for this location
-  final String admin1;       // Name of hierarchical administrative areas this location resides in. Admin1 is the first administrative level. Admin2 the second administrative level. Localized following the &language= parameter, if possible
-  final String? admin2;       // Name of hierarchical administrative areas this location resides in. Admin1 is the first administrative level. Admin2 the second administrative level. Localized following the &language= parameter, if possible
-  final String? admin3;       // Name of hierarchical administrative areas this location resides in. Admin1 is the first administrative level. Admin2 the second administrative level. Localized following the &language= parameter, if possible
-  final String? admin4;       // Name of hierarchical administrative areas this location resides in. Admin1 is the first administrative level. Admin2 the second administrative level. Localized following the &language= parameter, if possible
-  final int admin1_id;    // Unique IDs for the administrative areas
-  final int? admin2_id;    // Unique IDs for the administrative areas
-  final int? admin3_id;    // Unique IDs for the administrative areas
-  final int? admin4_id;    // Unique IDs for the administrative areas
-
-
-  Location.json(Map<String, dynamic> json)
-      : id = json['id'],
-        name = json['name'],
-        latitude = json['latitude'],
-        longitude = json['longitude'],
-        elevation = json['elevation'],
-        timezone = json['timezone'],
-        feature_code = json['feature_code'],
-        country_code = json['country_code'],
-        country = json['country'],
-        country_id = json['country_id'],
-        population = json['population'],
-        postcodes = json['postcodes'],
-        admin1 = json['admin1'],
-        admin2 = json['admin2'],
-        admin3 = json['admin3'],
-        admin4 = json['admin4'],
-        admin1_id = json['admin1_id'],
-        admin2_id = json['admin2_id'],
-        admin3_id = json['admin3_id'],
-        admin4_id = json['admin4_id'];
-  
-  String region() {
-    return '$admin1${admin2 != null ? ', $admin2' : ''}${admin3 != null ? ', $admin3' : ''}${admin4 != null ? ', $admin4' : ''}';
-    // return '$admin1, $admin2, $admin3, $admin4';
-  }
-
-  toText(){
-    return Text('$name\n, ${region()}, $country');
-  }
-}
-
-class Weather {
-  final temperature; // Temperature in Celsius
-  final wind_speed; // Wind speed in m/s
-  final wind_direction; // Wind direction in degrees
-  final humidity; // Humidity in percentage
-  final pressure; // Pressure in hPa
-  final weathercode; // Weather code
-  final is_day; // Is day or night
-  final time; // Time of the weather data
-
-  Weather({
-    required this.temperature,
-    required this.wind_speed,
-    required this.wind_direction,
-    required this.humidity,
-    required this.pressure,
-    required this.weathercode,
-    required this.is_day,
-    required this.time
-  });
-}
-
