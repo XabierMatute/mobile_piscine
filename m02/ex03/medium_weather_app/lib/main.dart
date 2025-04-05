@@ -202,7 +202,7 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
         });
       } on Exception catch (e) {
         print('Error: $e');
-        _updateError("Error: $e");
+        _updateError("Error connecting to the weather API\nPlease check your internet connection and try again.");
         return;
       }
 
@@ -359,7 +359,8 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
         final location = Location.json(answer['results'][0]);
         _locationSelected(location);
       } on Exception catch (e) {
-        _updateError('Error: $e');
+        print('Error: $e');
+        _updateError('Error connecting to the weather API\nPlease check your internet connection and try again.');
       }
 
     },
