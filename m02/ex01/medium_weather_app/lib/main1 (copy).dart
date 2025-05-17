@@ -1,4 +1,43 @@
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
+
+
+Future<Position> _determinePosition() async {
+  bool serviceEnabled;
+  LocationPermission permission;
+
+  // Test if location services are enabled.
+  serviceEnabled = await Geolocator.isLocationServiceEnabled();
+  if (!serviceEnabled) {
+    // Location services are not enabled don't continue
+    // accessing the position and request users of the 
+    // App to enable the location services.
+    return Future.error('Location services are disabled.');
+  }
+
+  permission = await Geolocator.checkPermission();
+  if (permission == LocationPermission.denied) {
+    permission = await Geolocator.requestPermission();
+    if (permission == LocationPermission.denied) {
+      // Permissions are denied, next time you could try
+      // requesting permissions again (this is also where
+      // Android's shouldShowRequestPermissionRationale 
+      // returned true. According to Android guidelines
+      // your App should show an explanatory UI now.
+      return Future.error('Location permissions are denied');
+    }
+  }
+  
+  if (permission == LocationPermission.deniedForever) {
+    // Permissions are denied forever, handle appropriately. 
+    return Future.error(
+      'Location permissions are permanently denied, we cannot request permissions.');
+  } 
+
+  // When we reach here, permissions are granted and we can
+  // continue accessing the position of the device.
+  return await Geolocator.getCurrentPosition();
+}
 
 void main() {
   runApp(const MyApp());
@@ -53,8 +92,15 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
   }
 
   void _geolocate() {
-    setState(() {
-      _updateLocation('Geolocation');
+    Future<Position> position = _determinePosition();
+    position.then((value) => 
+      setState(() {
+      _updateLocation(value.toString());
+    })).catchError((error) {
+      setState(() {
+        print('Error: $error');
+        _updateLocation(error.toString());
+      });
     });
   }
 
@@ -63,7 +109,7 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.title),
-        backgroundColor: Colors.pink,
+        
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(42.0),
           child: Column(
@@ -78,7 +124,8 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
                           hintText: 'Search...',
                           icon: Icon(Icons.search),
                         ),
-                        onChanged: _updateLocation,
+                        // onChanged: _updateLocation,
+                        onSubmitted: _updateLocation,
                       ),
                     ),
                     IconButton(
@@ -99,7 +146,7 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
       body: TabBarView(
         controller: _tabController,
         children: [
-          Center(child: Text('Currently\n$_location', textAlign: TextAlign.center)),
+          Center(child: Text('Hola John\n$_location', textAlign: TextAlign.center)),
           Center(child: Text('Today\n$_location', textAlign: TextAlign.center)),
           Center(child: Text('Weekly\n$_location', textAlign: TextAlign.center)),
         ],

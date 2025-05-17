@@ -177,7 +177,7 @@ class CalculatorButton extends StatelessWidget {
   const CalculatorButton({
     super.key,
     required this.text,
-    this.textColor = Colors.white,
+    this.textColor = Colors.pink,
     this.onPressed,
   });
 
